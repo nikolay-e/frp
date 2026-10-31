@@ -138,3 +138,45 @@ func TestValidateClientFeatureGatesAreConfigScoped(t *testing.T) {
 	require.ErrorContains(t, err, "VirtualNet feature is not enabled")
 	require.Equal(t, defaultGatesBefore, featuregate.DefaultFeatureGates.String())
 }
+
+func TestValidateClientTransportSendQueue(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*v1.ClientTransportConfig)
+		wantErr string
+	}{
+		{name: "unset", mutate: func(*v1.ClientTransportConfig) {}},
+		{
+			name: "set",
+			mutate: func(c *v1.ClientTransportConfig) {
+				c.TCPNotSentLowat = 16 * 1024
+				c.TCPSendBuffer = 4 * 1024 * 1024
+			},
+		},
+		{
+			name:    "negative not-sent low-water mark",
+			mutate:  func(c *v1.ClientTransportConfig) { c.TCPNotSentLowat = -1 },
+			wantErr: "transport.tcpNotSentLowat",
+		},
+		{
+			name:    "negative send buffer",
+			mutate:  func(c *v1.ClientTransportConfig) { c.TCPSendBuffer = -1 },
+			wantErr: "transport.tcpSendBuffer",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &v1.ClientCommonConfig{}
+			tc.mutate(&cfg.Transport)
+			require.NoError(t, cfg.Complete())
+
+			_, err := NewConfigValidator(security.NewUnsafeFeatures(nil)).ValidateClientCommonConfig(cfg)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}

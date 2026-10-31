@@ -132,6 +132,17 @@ type ClientTransportConfig struct {
 	// TCPMuxKeepaliveInterval specifies the keep alive interval for TCP stream multiplier.
 	// If TCPMux is true, heartbeat of application layer is unnecessary because it can only rely on heartbeat in TCPMux.
 	TCPMuxKeepaliveInterval int64 `json:"tcpMuxKeepaliveInterval,omitempty"`
+	// TCPNotSentLowat caps, in bytes, the data a TCP connection to the server has
+	// written but not yet sent (TCP_NOTSENT_LOWAT, Linux only). With a small value
+	// whatever frpc forwards is held by frpc instead of the kernel's send buffer, so
+	// a request that arrives later does not wait behind megabytes already queued on
+	// a slow link. 0 leaves the system default (unlimited).
+	TCPNotSentLowat int `json:"tcpNotSentLowat,omitempty"`
+	// TCPSendBuffer sets the send buffer (SO_SNDBUF), in bytes, of TCP connections
+	// to the server. Setting it stops the kernel from autotuning the buffer, which
+	// the net.ipv4.tcp_wmem maximum otherwise caps; the kernel doubles the value and
+	// limits it to net.core.wmem_max. 0 leaves the system default.
+	TCPSendBuffer int `json:"tcpSendBuffer,omitempty"`
 	// QUIC protocol options.
 	QUIC QUICOptions `json:"quic,omitempty"`
 	// HeartBeatInterval specifies at what interval heartbeats are sent to the

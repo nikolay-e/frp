@@ -170,6 +170,13 @@ func validateTransportConfig(c *v1.ClientTransportConfig) (Warning, error) {
 		}
 	}
 
+	if c.TCPNotSentLowat < 0 {
+		errs = AppendError(errs, fmt.Errorf("invalid transport.tcpNotSentLowat, should not be negative"))
+	}
+	if c.TCPSendBuffer < 0 {
+		errs = AppendError(errs, fmt.Errorf("invalid transport.tcpSendBuffer, should not be negative"))
+	}
+
 	if !slices.Contains(SupportedTransportProtocols, c.Protocol) {
 		errs = AppendError(errs, fmt.Errorf("invalid transport.protocol, optional values are %v", SupportedTransportProtocols))
 	}

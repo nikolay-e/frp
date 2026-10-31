@@ -7,7 +7,38 @@ import (
 
 	libnet "github.com/fatedier/golib/net"
 	"golang.org/x/net/websocket"
+
+	"github.com/fatedier/frp/pkg/util/xlog"
 )
+
+// DialHookTCPSendQueue bounds what a TCP connection to the server may queue on
+// the sending side. notSentLowat (TCP_NOTSENT_LOWAT, Linux only) caps the bytes
+// written but not yet sent, so the writer blocks while the kernel already holds
+// that much and whatever sits above the socket, not the kernel, decides what
+// goes next. sendBuffer (SO_SNDBUF) is the room for bytes in flight; setting it
+// stops the kernel from autotuning it, so a small net.ipv4.tcp_wmem maximum no
+// longer caps the throughput. A value of 0 leaves that option alone. It must run
+// before any hook that wraps the connection (TLS, websocket).
+func DialHookTCPSendQueue(notSentLowat, sendBuffer int) libnet.AfterHookFunc {
+	return func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
+		tcpConn, ok := c.(*net.TCPConn)
+		if !ok {
+			return ctx, c, nil
+		}
+		xl := xlog.FromContextSafe(ctx)
+		if sendBuffer > 0 {
+			if err := tcpConn.SetWriteBuffer(sendBuffer); err != nil {
+				xl.Warnf("set send buffer of the connection to server failed: %v", err)
+			}
+		}
+		if notSentLowat > 0 {
+			if err := setTCPNotSentLowat(tcpConn, notSentLowat); err != nil {
+				xl.Warnf("set TCP_NOTSENT_LOWAT of the connection to server failed: %v", err)
+			}
+		}
+		return ctx, c, nil
+	}
+}
 
 func DialHookCustomTLSHeadByte(enableTLS bool, disableCustomTLSHeadByte bool) libnet.AfterHookFunc {
 	return func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {

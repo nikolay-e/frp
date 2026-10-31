@@ -191,6 +191,26 @@ unixPath = "/tmp/uds.sock"
 	require.Error(err)
 }
 
+func TestLoadClientConfigTransportSendQueue(t *testing.T) {
+	require := require.New(t)
+
+	content := `
+serverPort = 7000
+transport.tcpNotSentLowat = 16384
+transport.tcpSendBuffer = 4194304
+`
+
+	clientCfg := v1.ClientConfig{}
+	require.NoError(LoadConfigure([]byte(content), &clientCfg, true))
+	require.Equal(16384, clientCfg.Transport.TCPNotSentLowat)
+	require.Equal(4194304, clientCfg.Transport.TCPSendBuffer)
+
+	unset := v1.ClientConfig{}
+	require.NoError(LoadConfigure([]byte("serverPort = 7000"), &unset, true))
+	require.Zero(unset.Transport.TCPNotSentLowat)
+	require.Zero(unset.Transport.TCPSendBuffer)
+}
+
 func TestLoadClientConfigStrictMode_UnknownPluginField(t *testing.T) {
 	require := require.New(t)
 

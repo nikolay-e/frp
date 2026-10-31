@@ -238,6 +238,10 @@ func (c *defaultConnectorImpl) realConnect() (net.Conn, error) {
 		dialOptions = append(dialOptions, libnet.WithLocalAddr(c.cfg.Transport.ConnectServerLocalIP))
 	}
 	dialOptions = append(dialOptions,
+		libnet.WithAfterHook(libnet.AfterHook{
+			Priority: 1,
+			Hook:     netpkg.DialHookTCPSendQueue(c.cfg.Transport.TCPNotSentLowat, c.cfg.Transport.TCPSendBuffer),
+		}),
 		libnet.WithProtocol(protocol),
 		libnet.WithTimeout(time.Duration(c.cfg.Transport.DialServerTimeout)*time.Second),
 		libnet.WithKeepAlive(time.Duration(c.cfg.Transport.DialServerKeepAlive)*time.Second),
